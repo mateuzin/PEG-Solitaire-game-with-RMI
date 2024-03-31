@@ -15,6 +15,7 @@ class GameServer(object):
         ]
         self.board = self.initial_board
         self.clients = []
+        self.chat_messages = []
         self.current_player = "P1"
 
     def register_client(self, client):
@@ -50,7 +51,18 @@ class GameServer(object):
     def get_current_player(self):
         return self.current_player
 
-daemon = Pyro4.Daemon()
+    def update_chat_messages(self, messages, nickname):
+        self.chat_messages.append(nickname + ": " + messages)
+        print(f"CHAT:{self.chat_messages}")
+        # Remova mensagens antigas se o limite for atingido
+        if len(self.chat_messages) > 19:
+            self.chat_messages.pop(0)
+
+    def get_chat_messages(self):
+        return self.chat_messages
+
+
+daemon = Pyro4.Daemon("192.168.15.100") #MUDAR PARA IP DA MÁQUINA
 server = GameServer()
 ns = Pyro4.locateNS()
 uri = daemon.register(server)

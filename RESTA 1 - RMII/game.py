@@ -7,7 +7,10 @@ import Pyro4
 
 def login(Erro=None):
     def connect_button_clicked():
-        game()
+        ip = ip_entry.get_value()
+        nickname = nickname_entry.get_value()
+
+        game(ip,nickname)
 
     pygame.init()
     clock = pygame.time.Clock()
@@ -26,7 +29,10 @@ def login(Erro=None):
     menu = pygame_menu.Menu('CLIENTE - LOGIN', 400, 520, theme=mytheme)
 
     if Erro == True:
-        menu.add.label('IP ou Porta incorretos, verifique com o servidor', font_size=15, margin=(0, 0), font_color=(255, 0, 0))
+        menu.add.label('IP incorreto, verifique com o servidor', font_size=15, margin=(0, 0), font_color=(255, 0, 0))
+
+    ip_entry = menu.add.text_input('IP: ', default="192.168.15.100", maxchar=15, ) #retirar default
+    nickname_entry = menu.add.text_input('Nome: ', default="Exemplo", maxchar=15)
 
     menu.add.button('Iniciar', connect_button_clicked)
     menu.add.button('Voltar para Menu', main)
@@ -94,8 +100,9 @@ def end(status = None):
 
     if __name__ == "__main__":
         end_screen = EndScreen()
-def game():
+def game(ip,nickname):
     class Game_Client:
+
         def __init__(self):
             pygame.init()
 
@@ -109,12 +116,16 @@ def game():
 
             # Variáveis
             self.selected_ball = None
-            self.send_movement = None
-            self.current_local_play = None
-            self.second_player = False #Alterar depois
+            self.second_player = False
             self.player_id = None
+            self.nickname = nickname
+            self.ip = ip
             self.game_started = False
             self.player_turn = None
+
+            self.chat_messages_print = []
+            self.client = None
+            self.chat_input = ""
 
             # Cores e imagens
             self.BLACK = (0, 0, 0)
@@ -128,20 +139,14 @@ def game():
             pygame.display.set_caption("RESTA UM")
             self.clock = pygame.time.Clock()
 
-            self.server_uri = "PYRONAME:TESTE"
+            #RMI
+            self.server_uri = "PYRONAME:TESTE@"+ip+":9090" #mudar para IP DO SERVER
+            print(self.server_uri)
             self.server = Pyro4.Proxy(self.server_uri)
             self.player_id = self.server.register_client("oi")
 
             # Cria o tabuleiro
             self.board = [row[:] for row in self.server.get_board()]
-
-            # RMI e Thread
-            self.chat_messages = []
-            self.chat_messages_print = []
-            self.client = None
-            self.chat_input = ""
-
-
 
 
         def draw_board(self):
@@ -214,18 +219,14 @@ def game():
             text_surface = font.render(self.chat_input, True, self.LIGHT_GREEN)
             chat_surface.blit(text_surface, (input_rect.x + 5, input_rect.y + 5))
 
-            y_offset = 60
+            y_offset = 500
 
-            for message in self.chat_messages_print:
+            for message in reversed(self.chat_messages_print):
                 text_surface2 = font.render(message, True, self.LIGHT_GREEN)
                 chat_surface.blit(text_surface2, (30, y_offset))
-                y_offset += 25
+                y_offset -= 25
 
             self.screen.blit(chat_surface, (600, 0))
-
-            # Remova mensagens antigas se o limite for atingido
-            if len(self.chat_messages_print) > 19:
-                self.chat_messages_print.pop(0)
 
         def draw_surrender_button(self):
             self.quit_button_rect = pygame.Rect(880, 8, 100, 40)
@@ -369,7 +370,6 @@ def game():
                                     elif self.selected_ball is not None and self.board[row][col] == 0:
                                         src_row, src_col = self.selected_ball
                                         if self.valid_move(src_row, src_col, row, col):
-                                            self.current_local_play = self.board
                                             self.server.update_board(self.board)
                                             print(f"JOGADA FEITA: {self.board}")  #debug
                                             self.server.player_turn(self.player_id) #muda jogada para o outro jogador
@@ -383,10 +383,8 @@ def game():
                         if event.key == pygame.K_RETURN:
                             # Enviar mensagem de chat
                             message = self.chat_input
-                            self.chat_messages_print.append(f"Você: {self.chat_input}")
-                            print(message)#debug
                             if message:
-                                self.chat_messages.append(message)
+                                self.server.update_chat_messages(message, self.nickname)
                                 self.chat_input = ""
                         elif event.key == pygame.K_BACKSPACE:
                             self.chat_input = self.chat_input[:-1]
@@ -399,6 +397,7 @@ def game():
                 self.number_of_players()
                 self.selected_piece()
                 self.board = self.server.get_board()
+                self.chat_messages_print = self.server.get_chat_messages()
 
                 # FIM DE JOGO
                 if not self.check_available_moves():
