@@ -311,27 +311,6 @@ def game(ip,nickname):
 
             return False
 
-        def check_available_moves(self):
-            # Verifica movimentos disponíveis
-            for row in range(self.ROW_COUNT):
-                for col in range(self.COL_COUNT):
-                    if self.board[row][col] == 1:
-                        # Verifica possíveis movimentos para cada peça
-                        for delta_row, delta_col in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
-                            new_row, new_col = row + delta_row, col + delta_col
-                            jump_row, jump_col = row + delta_row // 2, col + delta_col // 2
-
-                            # Verifica se o movimento é válido
-                            if (
-                                    0 <= new_row < self.ROW_COUNT
-                                    and 0 <= new_col < self.COL_COUNT
-                                    and self.board[new_row][new_col] == 0
-                                    and self.board[jump_row][jump_col] == 1
-                            ):
-                                return True  # Pelo menos um movimento disponível
-
-            return False  # Nenhum movimento disponível
-
         def number_of_players(self):
             if not self.game_started:
                 if self.player_id == "P1":
@@ -372,6 +351,7 @@ def game(ip,nickname):
                                         if self.valid_move(src_row, src_col, row, col):
                                             self.server.update_board(self.board)
                                             print(f"JOGADA FEITA: {self.board}")  #debug
+                                            self.server.check_winner(self.player_id)
                                             self.server.player_turn(self.player_id) #muda jogada para o outro jogador
                                             print(self.player_turn)
                                     else:
@@ -400,10 +380,17 @@ def game(ip,nickname):
                 self.chat_messages_print = self.server.get_chat_messages()
 
                 # FIM DE JOGO
-                if not self.check_available_moves():
-                    text = self.font_size1.render("Game Over Player", True, (255, 0, 0), self.BLACK, )
-                    self.screen.blit(text, (self.BOARD_WIDTH // 8, (self.HEIGHT // 2) - 30))
 
+                winner = str(self.server.get_winner())
+                if self.server.check_winner():
+                    text = self.font_size1.render(winner + " GANHOU", True, (255, 0, 0), self.BLACK, )
+                    self.screen.blit(text, (self.BOARD_WIDTH // 8, (self.HEIGHT // 2) - 30))
+                    if winner == "EMPATE":
+                        end(winner)
+                    elif winner == self.player_id:
+                        end("Você Ganhou")
+                    else:
+                        end("Você Perdeu")
                 pygame.display.flip()
 
                 self.clock.tick(self.FPS)

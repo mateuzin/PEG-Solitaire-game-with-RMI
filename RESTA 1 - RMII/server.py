@@ -4,19 +4,34 @@ import Pyro4
 @Pyro4.behavior(instance_mode='single')
 class GameServer(object):
     def __init__(self):
+        # self.initial_board = [
+        #         [-1, -1, 1, 1, 1, -1, -1],
+        #         [-1, -1, 1, 1, 1, -1, -1],
+        #         [1, 1, 1, 1, 1, 1, 1],
+        #         [1, 1, 1, 0, 1, 1, 1],
+        #         [1, 1, 1, 1, 1, 1, 1],
+        #         [-1, -1, 1, 1, 1, -1, -1],
+        #         [-1, -1, 1, 1, 1, -1, -1],
+        #     ]
+
+        #testar vencedor
         self.initial_board = [
-            [-1, -1, 1, 1, 1, -1, -1],
-            [-1, -1, 1, 1, 1, -1, -1],
-            [1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 0, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1],
-            [-1, -1, 1, 1, 1, -1, -1],
-            [-1, -1, 1, 1, 1, -1, -1],
-        ]
+                    [-1, -1, 1, 0, 0, -1, -1],
+                    [-1, -1, 1, 0, 0, -1, -1],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0],
+                    [-1, -1, 0, 0, 0, -1, -1],
+                    [-1, -1, 0, 0, 0, -1, -1],
+                ]
+
         self.board = self.initial_board
         self.clients = []
         self.chat_messages = []
         self.current_player = "P1"
+        self.ROW_COUNT, self.COL_COUNT = 7, 7
+        self.winner = None
+        self.flag = 1
 
     def register_client(self, client):
         self.clients.append(client)
@@ -60,6 +75,39 @@ class GameServer(object):
 
     def get_chat_messages(self):
         return self.chat_messages
+
+    def check_available_moves(self):
+        # Verifica movimentos disponíveis
+        for row in range(self.ROW_COUNT):
+            for col in range(self.COL_COUNT):
+                if self.board[row][col] == 1:
+                    # Verifica possíveis movimentos para cada peça
+                    for delta_row, delta_col in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
+                        new_row, new_col = row + delta_row, col + delta_col
+                        jump_row, jump_col = row + delta_row // 2, col + delta_col // 2
+
+                        # Verifica se o movimento é válido
+                        if (
+                                0 <= new_row < self.ROW_COUNT
+                                and 0 <= new_col < self.COL_COUNT
+                                and self.board[new_row][new_col] == 0
+                                and self.board[jump_row][jump_col] == 1
+                        ):
+                            return True  # Pelo menos um movimento disponível
+
+        return False  # Nenhum movimento disponível
+    def check_winner(self, nickname=None):
+        if sum(row.count(1) for row in self.board) == 1 and self.flag == 1:
+            self.winner = nickname
+            self.flag = self.flag+1
+            return True
+        elif not self.check_available_moves():
+            return "EMPATE"
+        return None
+
+    def get_winner(self):
+        print(self.winner)
+        return self.winner
 
 
 daemon = Pyro4.Daemon("192.168.15.100") #MUDAR PARA IP DA MÁQUINA
