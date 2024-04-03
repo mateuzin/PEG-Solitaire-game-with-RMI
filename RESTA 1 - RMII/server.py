@@ -4,6 +4,7 @@ import Pyro4
 @Pyro4.behavior(instance_mode='single')
 class GameServer(object):
     def __init__(self):
+        #INICIAL
         # self.initial_board = [
         #         [-1, -1, 1, 1, 1, -1, -1],
         #         [-1, -1, 1, 1, 1, -1, -1],
@@ -14,16 +15,27 @@ class GameServer(object):
         #         [-1, -1, 1, 1, 1, -1, -1],
         #     ]
 
+        #testar empate
+        # self.initial_board = [
+        #             [-1, -1, 1, 0, 0, -1, -1],
+        #             [-1, -1, 1, 0, 0, -1, -1],
+        #             [0, 0, 0, 0, 0, 0, 0],
+        #             [0, 0, 1, 0, 0, 0, 0],
+        #             [0, 0, 0, 0, 0, 0, 0],
+        #             [-1, -1, 0, 0, 0, -1, -1],
+        #             [-1, -1, 0, 0, 1, -1, -1],
+        #         ]
+
         #testar vencedor
         self.initial_board = [
-                    [-1, -1, 1, 0, 0, -1, -1],
-                    [-1, -1, 1, 0, 0, -1, -1],
-                    [0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0],
-                    [-1, -1, 0, 0, 0, -1, -1],
-                    [-1, -1, 0, 0, 0, -1, -1],
-                ]
+            [-1, -1, 1, 0, 0, -1, -1],
+            [-1, -1, 1, 0, 0, -1, -1],
+            [0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0],
+            [-1, -1, 0, 0, 0, -1, -1],
+            [-1, -1, 0, 0, 0, -1, -1],
+        ]
 
         self.board = self.initial_board
         self.clients = []
@@ -31,12 +43,13 @@ class GameServer(object):
         self.current_player = "P1"
         self.ROW_COUNT, self.COL_COUNT = 7, 7
         self.winner = None
+        self.surrender = False
         self.flag = 1
 
     def register_client(self, client):
         self.clients.append(client)
         if len(self.clients) == 0:
-            self.board = self.initial_board
+            GameServer()
         elif len(self.clients) == 1:
             self.board = self.initial_board
             return "P1"
@@ -44,7 +57,7 @@ class GameServer(object):
             return "P2"
         else:
             print("ASSISTINDO")
-        print(client)
+        print(len(self.clients))
 
     def number_of_clients(self):
         return len(self.clients)
@@ -96,18 +109,30 @@ class GameServer(object):
                             return True  # Pelo menos um movimento disponível
 
         return False  # Nenhum movimento disponível
-    def check_winner(self, nickname=None):
-        if sum(row.count(1) for row in self.board) == 1 and self.flag == 1:
-            self.winner = nickname
-            self.flag = self.flag+1
+
+    def check_winner(self, id=None, surrender=False):
+        if surrender:
+            print(f"{id} - Desistiu")
+            if id == "P1":
+                self.winner = "P2"
+            elif id == "P2":
+                self.winner = "P1"
+            self.surrender = True
+        elif sum(row.count(1) for row in self.board) == 1:
+            if self.flag == 1:
+                self.winner = id
+                self.flag = self.flag + 1
+            else:
+                print(f"{self.winner} Ganhou")
+
             return True
         elif not self.check_available_moves():
-            return "EMPATE"
+            self.winner = "EMPATE"
+            return True
         return None
 
     def get_winner(self):
-        print(self.winner)
-        return self.winner
+        return self.winner, self.surrender
 
 
 daemon = Pyro4.Daemon("192.168.15.100") #MUDAR PARA IP DA MÁQUINA

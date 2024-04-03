@@ -10,7 +10,7 @@ def login(Erro=None):
         ip = ip_entry.get_value()
         nickname = nickname_entry.get_value()
 
-        game(ip,nickname)
+        game(ip, nickname)
 
     pygame.init()
     clock = pygame.time.Clock()
@@ -31,7 +31,7 @@ def login(Erro=None):
     if Erro == True:
         menu.add.label('IP incorreto, verifique com o servidor', font_size=15, margin=(0, 0), font_color=(255, 0, 0))
 
-    ip_entry = menu.add.text_input('IP: ', default="192.168.15.100", maxchar=15, ) #retirar default
+    ip_entry = menu.add.text_input('IP: ', default="192.168.15.100", maxchar=15, )  # retirar default
     nickname_entry = menu.add.text_input('Nome: ', default="Exemplo", maxchar=15)
 
     menu.add.button('Iniciar', connect_button_clicked)
@@ -52,7 +52,8 @@ def login(Erro=None):
         pygame.display.flip()
         clock.tick(30)
 
-def end(status = None):
+
+def end(status=None):
     class EndScreen:
         def __init__(self):
             self.font_color = (128, 128, 128)
@@ -61,8 +62,7 @@ def end(status = None):
             pygame.init()
             clock = pygame.time.Clock()
 
-            screen = pygame.display.set_mode((300, 200))
-            pygame.display.set_caption('')
+            screen = pygame.display.set_mode((300, 160))
 
             self.mytheme = pygame_menu.themes.Theme(background_color=(0, 0, 0, 0),
                                                     title_background_color=(14, 36, 23),
@@ -70,9 +70,10 @@ def end(status = None):
                                                     widget_padding=5,
                                                     )
 
-            self.menu = pygame_menu.Menu(f"", 300, 200, theme=self.mytheme)
+            self.menu = pygame_menu.Menu(f"", 300, 160, theme=self.mytheme)
             self.menu.add.label(status, font_size=30, margin=(0, 0), font_color=(255, 0, 0))
-            label = self.menu.add.label(f'Encerrando: {self.seconds}', font_size=30, margin=(0, 0), font_color=self.font_color)
+            label = self.menu.add.label(f'Encerrando: {self.seconds}', font_size=30, margin=(0, 0),
+                                        font_color=self.font_color)
 
             pygame.display.flip()  # Atualiza a tela antes da contagem regressiva
 
@@ -100,7 +101,9 @@ def end(status = None):
 
     if __name__ == "__main__":
         end_screen = EndScreen()
-def game(ip,nickname):
+
+
+def game(ip, nickname):
     class Game_Client:
 
         def __init__(self):
@@ -139,15 +142,14 @@ def game(ip,nickname):
             pygame.display.set_caption("RESTA UM")
             self.clock = pygame.time.Clock()
 
-            #RMI
-            self.server_uri = "PYRONAME:TESTE@"+ip+":9090" #mudar para IP DO SERVER
+            # RMI
+            self.server_uri = "PYRONAME:TESTE@" + ip + ":9090"  # mudar para IP DO SERVER
             print(self.server_uri)
             self.server = Pyro4.Proxy(self.server_uri)
             self.player_id = self.server.register_client("oi")
 
             # Cria o tabuleiro
             self.board = [row[:] for row in self.server.get_board()]
-
 
         def draw_board(self):
             # Desenha o tabuleiro
@@ -156,7 +158,8 @@ def game(ip,nickname):
 
             for row in range(self.ROW_COUNT):
                 for col in range(self.COL_COUNT):
-                    pygame.draw.rect(board_surface, self.DARK_GREEN, (col * self.CELL_SIZE, row * self.CELL_SIZE, self.CELL_SIZE, self.CELL_SIZE), 1)
+                    pygame.draw.rect(board_surface, self.DARK_GREEN,
+                                     (col * self.CELL_SIZE, row * self.CELL_SIZE, self.CELL_SIZE, self.CELL_SIZE), 1)
                     if self.board[row][col] == 1:
                         pygame.draw.circle(
                             board_surface,
@@ -241,8 +244,8 @@ def game(ip,nickname):
         def handle_surrender_button_click(self, pos):
             # Verifica se o botão de desistir foi clicado
             if self.quit_button_rect.collidepoint(pos):
+                self.server.check_winner(self.player_id, True)
                 print("O jogador desistiu.")
-                end(f" Desistiu")
 
         def draw_status_message(self):
             self.status_rect = pygame.Rect(700, 8, 100, 40)
@@ -253,7 +256,6 @@ def game(ip,nickname):
                 status_message = "SUA VEZ"
             else:
                 status_message = "AGUARDE SUA VEZ"
-
 
             pygame.draw.rect(self.screen, self.LIGHT_GREEN, self.status_rect)
 
@@ -322,7 +324,7 @@ def game(ip,nickname):
                     self.game_started = True
             else:
                 self.player_turn = self.server.get_current_player()
-                #print(self.player_turn) #debug
+                # print(self.player_turn) #debug
 
         def run(self):
             run = True
@@ -337,9 +339,9 @@ def game(ip,nickname):
                         row = event.pos[1] // self.CELL_SIZE
                         self.handle_surrender_button_click(event.pos)
                         if not self.second_player:
-                            print("aguarde")#debug
+                            print("aguarde")  # debug
                         else:
-                            if self.player_id == self.player_turn: # Se for a vez do cliente
+                            if self.player_id == self.player_turn:  # Se for a vez do cliente
                                 # Movimentos
                                 if 0 <= row < self.ROW_COUNT and 0 <= col < self.COL_COUNT:
                                     if self.selected_ball is None and self.board[row][col] == 1:
@@ -350,13 +352,13 @@ def game(ip,nickname):
                                         src_row, src_col = self.selected_ball
                                         if self.valid_move(src_row, src_col, row, col):
                                             self.server.update_board(self.board)
-                                            print(f"JOGADA FEITA: {self.board}")  #debug
+                                            print(f"JOGADA FEITA: {self.board}")  # debug
                                             self.server.check_winner(self.player_id)
-                                            self.server.player_turn(self.player_id) #muda jogada para o outro jogador
+                                            self.server.player_turn(self.player_id)  # muda jogada para o outro jogador
                                             print(self.player_turn)
                                     else:
-                                        print("NÃO PODE")  #debug
-                            else: #Quando não for a vez
+                                        print("NÃO PODE")  # debug
+                            else:  # Quando não for a vez
                                 print(f"VEZ DO JOGADOR: {self.player_turn}")
 
                     elif event.type == pygame.KEYDOWN:
@@ -381,16 +383,19 @@ def game(ip,nickname):
 
                 # FIM DE JOGO
 
-                winner = str(self.server.get_winner())
-                if self.server.check_winner():
-                    text = self.font_size1.render(winner + " GANHOU", True, (255, 0, 0), self.BLACK, )
-                    self.screen.blit(text, (self.BOARD_WIDTH // 8, (self.HEIGHT // 2) - 30))
+                winner, surrender = self.server.get_winner()
+                if self.server.check_winner() or surrender:
                     if winner == "EMPATE":
-                        end(winner)
+                        end("EMPATE")
                     elif winner == self.player_id:
                         end("Você Ganhou")
                     else:
-                        end("Você Perdeu")
+                        if surrender:
+                            end("Você desistiu")
+
+                        else:
+                            end("Você Perdeu")
+
                 pygame.display.flip()
 
                 self.clock.tick(self.FPS)
