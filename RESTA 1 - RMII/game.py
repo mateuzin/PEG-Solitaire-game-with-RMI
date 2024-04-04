@@ -5,18 +5,20 @@ import threading
 import Pyro4
 import time
 
+server_running_thread = True
 
-def login(Erro=None):
+def login_client(Erro=None):
     def connect_button_clicked():
         ip = ip_entry.get_value()
+        server_id = server_id_entry.get_value()
         nickname = nickname_entry.get_value()
 
-        game(ip, nickname)
+        start_client(ip, server_id, nickname)
 
     pygame.init()
     clock = pygame.time.Clock()
 
-    screen = pygame.display.set_mode((400, 520))
+    screen = pygame.display.set_mode((500, 520))
     pygame.display.set_caption('RESTA UM - MENU')
 
     mytheme = pygame_menu.themes.Theme(
@@ -27,12 +29,13 @@ def login(Erro=None):
         widget_alignment=pygame_menu.locals.ALIGN_LEFT
     )
 
-    menu = pygame_menu.Menu('CLIENTE - LOGIN', 400, 520, theme=mytheme)
+    menu = pygame_menu.Menu('CLIENTE - LOGIN', 500, 520, theme=mytheme)
 
     if Erro == True:
-        menu.add.label('IP incorreto, verifique com o servidor', font_size=15, margin=(0, 0), font_color=(255, 0, 0))
+        menu.add.label('IP ou ID incorretos, verifique com o servidor', font_size=15, margin=(0, 0), font_color=(255, 0, 0))
 
-    ip_entry = menu.add.text_input('IP: ', default="192.168.15.100", maxchar=15, )  # retirar default
+    ip_entry = menu.add.text_input('IP do SDN: ', default="192.168.15.100", maxchar=15, )  # retirar default
+    server_id_entry = menu.add.text_input('ID do Servidor: ', default="TESTE", maxchar=15, )
     nickname_entry = menu.add.text_input('Nome: ', default="Exemplo", maxchar=15)
 
     menu.add.button('Iniciar', connect_button_clicked)
@@ -52,6 +55,91 @@ def login(Erro=None):
 
         pygame.display.flip()
         clock.tick(30)
+
+def login_server(Erro=None):
+    def connect_button_clicked():
+        ip = ip_entry.get_value()
+        server_id = server_id_entry.get_value()
+        threading.Thread(target=start_server, args=(ip, server_id)).start()
+        server_interface(ip, server_id)
+
+    pygame.init()
+    clock = pygame.time.Clock()
+
+    screen = pygame.display.set_mode((500, 520))
+    pygame.display.set_caption('RESTA UM - MENU')
+
+    mytheme = pygame_menu.themes.Theme(
+        background_color=(0, 0, 0, 0),
+        title_background_color=(14, 36, 23),
+        title_font_shadow=True,
+        widget_padding=18,
+        widget_alignment=pygame_menu.locals.ALIGN_LEFT
+    )
+
+    menu = pygame_menu.Menu('SERVIDOR - LOGIN', 500, 520, theme=mytheme)
+
+    if Erro == True:
+        menu.add.label('IP incorreto, verifique com o servidor de nomes', font_size=15, margin=(0, 0), font_color=(255, 0, 0))
+
+    ip_entry = menu.add.text_input('IP do SDN: ', default="192.168.15.100", maxchar=15, )  # retirar default
+    server_id_entry = menu.add.text_input('ID do Servidor: ', default="TESTE", maxchar=15, )
+
+    menu.add.button('Iniciar', connect_button_clicked)
+    menu.add.button('Voltar para Menu', main)
+    menu.add.button('Sair', pygame_menu.events.EXIT)
+
+    while True:
+        events = pygame.event.get()
+        for event in events:
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        menu.update(events)
+        screen.fill((14, 36, 23))
+        menu.draw(screen)
+
+        pygame.display.flip()
+        clock.tick(30)
+
+def server_interface(ip,server_id):
+
+    pygame.init()
+    clock = pygame.time.Clock()
+
+    screen = pygame.display.set_mode((400, 400))
+    pygame.display.set_caption('RESTA UM - MENU')
+    font_color = (128, 128, 128)
+
+    mytheme = pygame_menu.themes.Theme(
+        background_color=(0, 0, 0, 0),
+        title_background_color=(14, 36, 23),
+        title_font_shadow=True,
+        widget_padding=18,
+        widget_alignment=pygame_menu.locals.ALIGN_LEFT
+    )
+
+    menu = pygame_menu.Menu('SERVIDOR', 400, 400, theme=mytheme)
+
+    menu.add.label(f'IP: {ip}', font_size=30, margin=(0, 0), font_color=font_color)
+    menu.add.label(f'ID do Servidor: {server_id}', font_size=30, margin=(0, 0), font_color=font_color)
+    menu.add.button('Sair', pygame_menu.events.EXIT)
+
+
+    while True:
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+
+            menu.update(events)
+            screen.fill((14, 36, 23))
+            menu.draw(screen)
+
+            pygame.display.flip()
+            clock.tick(30)
 
 
 def end(status=None):
@@ -104,7 +192,7 @@ def end(status=None):
         end_screen = EndScreen()
 
 
-def game(ip, nickname):
+def start_client(ip, server_id, nickname):
     class Game_Client:
 
         def __init__(self):
@@ -144,19 +232,22 @@ def game(ip, nickname):
             self.clock = pygame.time.Clock()
 
             # RMI
-            self.server_uri = "PYRONAME:TESTE@" + ip + ":9090"  # mudar para IP DO SERVER
-            print(self.server_uri)
-            self.server = Pyro4.Proxy(self.server_uri)
-            if self.server.number_of_clients() == 0:
-                self.player_id = "P1"
-            elif self.server.number_of_clients() == 1:
-                self.player_id = "P2"
-            else:
-                self.player_id = "ASSISTINDO"
+            try:
+                self.server_uri = "PYRONAME:" + server_id + "@" + ip + ":9090"
+                self.server = Pyro4.Proxy(self.server_uri)
+                if self.server.number_of_clients() == 0:
+                    self.player_id = "P1"
+                elif self.server.number_of_clients() == 1:
+                    self.player_id = "P2"
+                else:
+                    self.player_id = "ASSISTINDO"
 
-            self.server.register_client(self.player_id)
-            # Cria o tabuleiro
-            self.board = [row[:] for row in self.server.get_board()]
+                self.server.register_client(self.player_id)
+                # Cria o tabuleiro
+                self.board = [row[:] for row in self.server.get_board()]
+            except Pyro4.errors.CommunicationError:
+                login_client(True)
+
 
         def draw_board(self):
             # Desenha o tabuleiro
@@ -433,6 +524,169 @@ def game(ip, nickname):
         game.run()
         game.stop_ping()
 
+def start_server(ip,server_id):
+    @Pyro4.expose
+    @Pyro4.behavior(instance_mode='single')
+    class GameServer(object):
+        def __init__(self):
+            # INICIAL
+            self.initial_board = [
+                    [-1, -1, 1, 1, 1, -1, -1],
+                    [-1, -1, 1, 1, 1, -1, -1],
+                    [1, 1, 1, 1, 1, 1, 1],
+                    [1, 1, 1, 0, 1, 1, 1],
+                    [1, 1, 1, 1, 1, 1, 1],
+                    [-1, -1, 1, 1, 1, -1, -1],
+                    [-1, -1, 1, 1, 1, -1, -1],
+                ]
+
+            # testar empate
+            # self.initial_board = [
+            #             [-1, -1, 1, 0, 0, -1, -1],
+            #             [-1, -1, 1, 0, 0, -1, -1],
+            #             [0, 0, 0, 0, 0, 0, 0],
+            #             [0, 0, 1, 0, 0, 0, 0],
+            #             [0, 0, 0, 0, 0, 0, 0],
+            #             [-1, -1, 0, 0, 0, -1, -1],
+            #             [-1, -1, 0, 0, 1, -1, -1],
+            #         ]
+
+            # testar vencedor
+            # self.initial_board = [
+            #     [-1, -1, 1, 0, 0, -1, -1],
+            #     [-1, -1, 1, 0, 0, -1, -1],
+            #     [0, 0, 0, 0, 0, 0, 0],
+            #     [0, 0, 1, 0, 0, 0, 0],
+            #     [0, 0, 0, 0, 0, 0, 0],
+            #     [-1, -1, 0, 0, 0, -1, -1],
+            #     [-1, -1, 0, 0, 0, -1, -1],
+            # ]
+
+            self.board = self.initial_board
+            self.clients = []
+            self.chat_messages = []
+            self.current_player = "P1"
+            self.ROW_COUNT, self.COL_COUNT = 7, 7
+            self.winner = None
+            self.surrender = False
+            self.flag = 1
+            self.client_ping_times = {}
+            self.running = True
+            threading.Thread(target=self.check_clients).start()
+        def register_client(self, client):
+            self.clients.append(client)
+            print(client)
+            self.client_ping_times[client] = time.time()
+            if len(self.clients) == 1:
+                self.board = self.initial_board
+
+        def number_of_clients(self):
+            return len(self.clients)
+
+        def update_board(self, move):
+            self.board = [row[:] for row in move]
+
+        def get_board(self):
+            return self.board
+
+        def player_turn(self, id):
+            if id == "P1":
+                self.current_player = "P2"
+                print(self.current_player)
+            elif id == "P2":
+                self.current_player = "P1"
+                print(self.current_player)
+
+        def get_current_player(self):
+            return self.current_player
+
+        def update_chat_messages(self, messages, nickname):
+            self.chat_messages.append(nickname + ": " + messages)
+            print(f"CHAT:{self.chat_messages}")
+            # Remova mensagens antigas se o limite for atingido
+            if len(self.chat_messages) > 19:
+                self.chat_messages.pop(0)
+
+        def get_chat_messages(self):
+            return self.chat_messages
+
+        def check_available_moves(self):
+            # Verifica movimentos disponíveis
+            for row in range(self.ROW_COUNT):
+                for col in range(self.COL_COUNT):
+                    if self.board[row][col] == 1:
+                        # Verifica possíveis movimentos para cada peça
+                        for delta_row, delta_col in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
+                            new_row, new_col = row + delta_row, col + delta_col
+                            jump_row, jump_col = row + delta_row // 2, col + delta_col // 2
+
+                            # Verifica se o movimento é válido
+                            if (
+                                    0 <= new_row < self.ROW_COUNT
+                                    and 0 <= new_col < self.COL_COUNT
+                                    and self.board[new_row][new_col] == 0
+                                    and self.board[jump_row][jump_col] == 1
+                            ):
+                                return True  # Pelo menos um movimento disponível
+
+            return False  # Nenhum movimento disponível
+
+        def check_winner(self, id=None, surrender=False):
+            if surrender:
+                print(f"{id} - Desistiu")
+                if id == "P1":
+                    self.winner = "P2"
+                elif id == "P2":
+                    self.winner = "P1"
+                self.surrender = True
+            elif sum(row.count(1) for row in self.board) == 1:
+                if self.flag == 1:
+                    self.winner = id
+                    self.flag = self.flag + 1
+                else:
+                    print(f"{self.winner} Ganhou")
+
+                return True
+            elif not self.check_available_moves():
+                self.winner = "EMPATE"
+                return True
+            return None
+
+        def get_winner(self):
+            return self.winner, self.surrender
+
+        def ping(self, client):
+
+            self.client_ping_times[client] = time.time()
+            return "pong"
+
+        def check_clients(self):
+            while self.running:
+                # Verifica o tempo de ping de cada cliente
+                for client in list(self.client_ping_times.keys()):
+                    last_ping_time = self.client_ping_times[client]
+                    if time.time() - last_ping_time > 10:
+                        print(f"Cliente {client} desconectado.")
+                        self.clients.remove(client)
+                        self.check_winner(client, True)
+                        del self.client_ping_times[client]
+                        if len(self.clients) == 0:
+                            self.__init__()
+
+                time.sleep(5)
+
+    if __name__ == "__main__":
+        try:
+            daemon = Pyro4.Daemon(ip)  # MUDAR PARA IP DA MÁQUINA
+            server = GameServer()
+            ns = Pyro4.locateNS()
+            uri = daemon.register(server)
+            ns.register(server_id, uri)
+            print(f"Server started on: {server_id}")
+            daemon.requestLoop()
+        except Pyro4.errors.NamingError:
+            login_server(True)
+
 
 def main():
     pygame.init()
@@ -450,7 +704,8 @@ def main():
 
     menu = pygame_menu.Menu('Resta 1', 350, 440, theme=mytheme)
 
-    menu.add.button('Cliente', login)
+    menu.add.button('Cliente', login_client)
+    menu.add.button('Servidor', login_server)
     menu.add.button('Sair', pygame_menu.events.EXIT)
 
     while True:
