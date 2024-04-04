@@ -3,6 +3,7 @@ import pygame_menu
 import sys
 import threading
 import Pyro4
+import time
 
 
 def login(Erro=None):
@@ -146,8 +147,14 @@ def game(ip, nickname):
             self.server_uri = "PYRONAME:TESTE@" + ip + ":9090"  # mudar para IP DO SERVER
             print(self.server_uri)
             self.server = Pyro4.Proxy(self.server_uri)
-            self.player_id = self.server.register_client("oi")
+            if self.server.number_of_clients() == 0:
+                self.player_id = "P1"
+            elif self.server.number_of_clients() == 1:
+                self.player_id = "P2"
+            else:
+                self.player_id = "ASSISTINDO"
 
+            self.server.register_client(self.player_id)
             # Cria o tabuleiro
             self.board = [row[:] for row in self.server.get_board()]
 
@@ -326,6 +333,23 @@ def game(ip, nickname):
                 self.player_turn = self.server.get_current_player()
                 # print(self.player_turn) #debug
 
+        def start_ping(self):
+            self.running = True
+            threading.Thread(target=self.ping_thread).start()
+
+        def stop_ping(self):
+            self.running = False
+
+        def ping_thread(self):
+            while self.running:
+                try:
+                    response = self.server.ping(self.player_id)
+                    print("Received response:", response)
+                except Pyro4.errors.CommunicationError:
+                    print("Server not responding. Connection lost.")
+                    break
+                time.sleep(5)  # Ping a cada 5 segundos
+
         def run(self):
             run = True
             while run:
@@ -333,6 +357,7 @@ def game(ip, nickname):
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         pygame.quit()
+                        self.stop_ping()
                         sys.exit()
                     elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         col = event.pos[0] // self.CELL_SIZE
@@ -385,6 +410,7 @@ def game(ip, nickname):
 
                 winner, surrender = self.server.get_winner()
                 if self.server.check_winner() or surrender:
+                    self.stop_ping()
                     if winner == "EMPATE":
                         end("EMPATE")
                     elif winner == self.player_id:
@@ -392,7 +418,6 @@ def game(ip, nickname):
                     else:
                         if surrender:
                             end("Você desistiu")
-
                         else:
                             end("Você Perdeu")
 
@@ -404,7 +429,9 @@ def game(ip, nickname):
 
     if __name__ == "__main__":
         game = Game_Client()
+        game.start_ping()
         game.run()
+        game.stop_ping()
 
 
 def main():

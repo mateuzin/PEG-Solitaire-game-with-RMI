@@ -1,4 +1,6 @@
 import Pyro4
+import time
+import threading
 
 @Pyro4.expose
 @Pyro4.behavior(instance_mode='single')
@@ -45,19 +47,17 @@ class GameServer(object):
         self.winner = None
         self.surrender = False
         self.flag = 1
+        self.client_ping_times = {}
+        self.running = True
+        threading.Thread(target=self.check_clients).start()
+
 
     def register_client(self, client):
         self.clients.append(client)
-        if len(self.clients) == 0:
-            GameServer()
-        elif len(self.clients) == 1:
+        print(client)
+        self.client_ping_times[client] = time.time()
+        if len(self.clients) == 1:
             self.board = self.initial_board
-            return "P1"
-        elif len(self.clients) == 2:
-            return "P2"
-        else:
-            print("ASSISTINDO")
-        print(len(self.clients))
 
     def number_of_clients(self):
         return len(self.clients)
@@ -133,6 +133,26 @@ class GameServer(object):
 
     def get_winner(self):
         return self.winner, self.surrender
+
+    def ping(self, client):
+
+        self.client_ping_times[client] = time.time()
+        return "pong"
+
+    def check_clients(self):
+        while self.running:
+            # Verifica o tempo de ping de cada cliente
+            for client in list(self.client_ping_times.keys()):
+                last_ping_time = self.client_ping_times[client]
+                if time.time() - last_ping_time > 10:
+                    print(f"Cliente {client} desconectado.")
+                    self.clients.remove(client)
+                    self.check_winner(client, True)
+                    del self.client_ping_times[client]
+                    if len(self.clients) == 0:
+                        self.__init__()
+
+            time.sleep(5)
 
 
 daemon = Pyro4.Daemon("192.168.15.100") #MUDAR PARA IP DA MÁQUINA
